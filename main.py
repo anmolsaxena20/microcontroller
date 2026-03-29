@@ -10,6 +10,7 @@ from kivy.clock import Clock
 from kivy.graphics.texture import Texture
 from kivy.uix.filechooser import FileChooserIconView
 from kivy.uix.popup import Popup
+import serial
 
 # If you install face_recognition later, it can do deep-learning face matching.
 # For now, we fall back to a simple template matching / Cascade approach if not installed.
@@ -22,7 +23,6 @@ except ImportError:
 class FaceTrackerApp(App):
     def build(self):
         self.layout = BoxLayout(orientation='vertical')
-        
         # UI Elements
         self.top_bar = BoxLayout(size_hint=(1, 0.1))
         
@@ -37,6 +37,15 @@ class FaceTrackerApp(App):
             self.status_label.text = "Install 'face_recognition' for specific photo tracking. Currently tracking largest face."
         
         self.layout.add_widget(self.top_bar)
+        try:
+            self.arduino = serial.Serial('COM3', 9600, timeout=1)  # बदलो if needed
+            time.sleep(2)
+            self.serial_connected = True
+            self.status_label.text = "Arduino Connected"
+            print(self.status_label.text)
+        except:
+            self.serial_connected = False
+            self.status_label.text = "Arduino NOT Connected"
         
         # Camera Display
         self.img_display = Image()
@@ -160,12 +169,21 @@ class FaceTrackerApp(App):
 
         # Log coordinates if a face is tracked
         if center_x is not None and center_y is not None:
+    # Log to file
             with open(self.log_file_path, "a") as f:
-                f.write(f"{time.time():.3f}, {center_x}, {center_y}\n")
-            
-            if not self.target_encoding:  # Only update label if not locked on specific face
-                 self.status_label.text = f"Tracking: X={center_x}, Y={center_y}"
+               f.write(f"{time.time():.3f}, {center_x}, {center_y}\n")
 
+    # Send to Arduino
+            if self.serial_connected:
+                try:
+                    data = f"{center_x},{center_y}\n"
+                    self.arduino.write(data.encode())
+                except:
+                    self.serial_connected = False
+                    self.status_label.text = "Serial Disconnected"
+
+            if not self.target_encoding:
+                self.status_label.text = f"Tracking: X={center_x}, Y={center_y}"
         # Convert the frame to a Kivy Texture
         # OpenCV uses BGR, but Kivy expects RGB or BGR(A) depending on configuration.
         # It's safest to convert BGR to RGB
@@ -183,6 +201,8 @@ class FaceTrackerApp(App):
     def on_stop(self):
         # Release the camera when the app stops
         self.capture.release()
+        if hasattr(self, 'arduino') and self.serial_connected:
+            self.arduino.close()
 
 if __name__ == '__main__':
     FaceTrackerApp().run()
