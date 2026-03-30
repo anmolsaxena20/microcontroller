@@ -92,11 +92,11 @@ def main():
             # --- Live Data Pipe (Direct to Serial + Log) ---
             if center_x is not None:
                 # APPLY OFFSET COMPENSATION
-                piped_x = raw_center_x + OFFSET_X
-                piped_y = raw_center_y + OFFSET_Y
+                piped_x = center_x + OFFSET_X
+                piped_y = center_y + OFFSET_Y
                 
                 # Constrain to screen bounds so servos don't crash
-                piped_x = max(0, min(w, piped_x))
+                piped_x = w - max(0, min(w, piped_x))
                 piped_y = max(0, min(h, piped_y))   
                 # 1. Pipe to Serial (Format: "X,Y\n" e.g "320,240\n")
                 if HAS_SERIAL:
@@ -108,7 +108,7 @@ def main():
 
                 # UI Overlay
                 cv2.circle(frame, (center_x, center_y), 5, (0, 0, 255), -1)
-                cv2.putText(frame, f"PIPED: {center_x},{center_y} (COM9)", (15, 30), 
+                cv2.putText(frame, f"PIPED: {piped_x},{piped_y} (COM9)", (15, 30), 
                             cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
             else:
                 cv2.putText(frame, "STATUS: TARGET LOST...", (15, 30), 
